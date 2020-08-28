@@ -1,0 +1,106 @@
+\documentclass[]{article}
+\usepackage{luacode}
+
+\begin{luacode*} -- CVS API thanks to http://nocurve.com/simple-csv-read-and-write-using-lua/ 
+ local function split(str, sep) 
+     fields={} 
+     local matchfunc = string.gmatch(str, "([^"..sep.."]+)") 
+     if not matchfunc then return {str} end 
+     for str in matchfunc do 
+         table.insert(fields, str) 
+     end 
+     return fields 
+end 
+
+function read(path, sep, tonum) 
+    tonum = tonum or true 
+    sep = sep or ',' 
+    local csvFile = {} 
+    local file = assert(io.open(path, "r")) 
+    for line in file:lines() do 
+        fields = split(line, sep) 
+        if tonum then -- convert numeric fields to numbers 
+            for i=1,#fields do 
+                fields[i] = tonumber(fields[i]) or fields[i] 
+            end 
+        end 
+        table.insert(csvFile, fields) 
+    end 
+    file:close() 
+    return csvFile 
+end 
+
+function getCVS(fileName) 
+ local m = read(fileName) -- read file csv1.txt to matrix m 
+ local nRow = #m 
+ local nCol = #m[1] 
+
+ tex.sprint("\\begin{tabular}{") 
+ for j=1,#m[1] do 
+     tex.sprint("|l") 
+ end 
+ tex.print("|}\\hline") 
+
+ for i = 1,nRow do 
+   for j = 1,nCol do 
+       tex.sprint(m[i][j]) 
+       if j<nCol then tex.sprint("&") end 
+   end 
+   tex.print("\\\\ \\hline") 
+ end 
+ tex.print("\\end{tabular}") 
+end
+
+function displayPlans(fileName)
+ local file = read(fileName)
+ local nRow = #file
+ local outputNcol = 3
+ local beginTable = 1
+
+ for i = 1,nRow do
+    if file[i][1] == "beginTable" then beginTable = i end
+    if file[i][1] == "endTable" then createTable(beginTable, i, file) end
+ end
+end
+
+local tableNameCol = 2
+
+function createTable(begin, to, file)
+ local tableName = file[begin][tableNameCol]
+ local anfang = begin + 1
+ local ende = to - 1
+
+ tex.print("\\section{" .. tableName .. "}")
+
+ tex.sprint("\\begin{tabular}{") 
+ for j=1,3 do 
+     tex.sprint("|l") 
+ end 
+ tex.print("|}\\hline") 
+
+ tex.sprint("Zeitraum & Namen & Rolle")
+ tex.print("\\\\ \\hline") 
+
+ for i = anfang,ende do 
+   for j = 1,3 do 
+       tex.sprint(file[i][j]) 
+       if j<3 then tex.sprint("&") end 
+   end 
+   tex.print("\\\\ \\hline") 
+ end
+ tex.print("\\end{tabular}") 
+end
+
+\end{luacode*} 
+\newcommand\getCVS[1]{\directlua{getCVS(#1) }}%
+\newcommand\displayPlans[1]{\directlua{displayPlans(#1)}}
+
+\begin{document} 
+
+\begin{table}[] 
+    \centering 
+    \caption{My CVS file in a Latex table} 
+    \displayPlans{"test.csv"} 
+\end{table} 
+
+\end{document}
